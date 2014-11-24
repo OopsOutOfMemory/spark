@@ -639,7 +639,7 @@ private[hive] object HiveQl {
         // TOK_INSERT_INTO means to add files to the table.
         // TOK_DESTINATION means to overwrite the table.
         val resultDestination =
-          (intoClause orElse destClause).getOrElse(sys.error("No destination found."))
+          (intoClause orElse  destClause).getOrElse(sys.error("No destination found."))
         val overwrite = intoClause.isEmpty
         nodeToDest(
           resultDestination,
@@ -811,6 +811,22 @@ private[hive] object HiveQl {
            Token("TOK_DIR",
              Token("TOK_TMP_FILE", Nil) :: Nil) :: Nil) =>
       query
+
+    case Token(destinationToken(),
+           Token("TOK_LOCAL_DIR",
+           pathArgs) :: Nil) =>
+
+      val path = pathArgs.head.getText
+      PersistToFile(path, query,"local")
+
+
+    case Token(destinationToken(),
+    Token("TOK_DIR",
+    pathArgs) :: Nil) =>
+
+      val path = pathArgs.head.getText
+      PersistToFile(path, query,"hdfs")
+
 
     case Token(destinationToken(),
            Token("TOK_TAB",

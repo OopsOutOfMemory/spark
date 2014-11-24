@@ -170,6 +170,8 @@ private[hive] trait HiveStrategies {
           child,
           allowExisting,
           extra) :: Nil
+      case logical.PersistToFile(path, child, dest_type) =>
+        DataSinkToFile(path,planLater(child),dest_type)(hiveContext) :: Nil
       case _ => Nil
     }
   }

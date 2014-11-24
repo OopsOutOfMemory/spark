@@ -99,6 +99,20 @@ case class Except(left: LogicalPlan, right: LogicalPlan) extends BinaryNode {
   def output = left.output
 }
 
+
+case class PersistToFile(
+    path: String,
+    child: LogicalPlan,
+    des_type: String)
+  extends LogicalPlan{
+
+  override def children = child :: Nil
+  override def output = child.output
+
+}
+
+
+
 case class InsertIntoTable(
     table: LogicalPlan,
     partition: Map[String, Option[String]],
@@ -113,6 +127,7 @@ case class InsertIntoTable(
     case (childAttr, tableAttr) => childAttr.dataType == tableAttr.dataType
   }
 }
+
 
 case class CreateTableAsSelect[T](
     databaseName: Option[String],
