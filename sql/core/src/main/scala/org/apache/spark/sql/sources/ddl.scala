@@ -54,6 +54,7 @@ private[sql] class DDLParser extends StandardTokenParsers with PackratParsers wi
   protected val TABLE = Keyword("TABLE")
   protected val USING = Keyword("USING")
   protected val OPTIONS = Keyword("OPTIONS")
+  protected val SERDEPROPERTIES = Keyword("SERDEPROPERTIES")
 
   // Use reflection to find the reserved words defined in this class.
   protected val reservedWords =
@@ -72,12 +73,16 @@ private[sql] class DDLParser extends StandardTokenParsers with PackratParsers wi
    * OPTIONS (path "../hive/src/test/resources/data/files/episodes.avro")
    */
   protected lazy val createTable: Parser[LogicalPlan] =
-    CREATE ~ TEMPORARY ~ TABLE ~> ident ~ (USING ~> className) ~ (OPTIONS ~> options) ^^ {
-      case tableName ~ provider ~ opts =>
+    CREATE ~ TEMPORARY ~ TABLE ~> ident ~ (USING ~> className) ~ (OPTIONS ~> options) ~ (SERDEPROPERTIES ~> serde ).? ^^ {
+      case tableName ~ provider ~ opts ~ sd =>
         CreateTableUsing(tableName, provider, opts)
     }
 
   protected lazy val options: Parser[Map[String, String]] =
+    "(" ~> repsep(pair, ",") <~ ")" ^^ { case s: Seq[(String, String)] => s.toMap }
+
+
+  protected lazy val serde: Parser[Map[String, String]] =
     "(" ~> repsep(pair, ",") <~ ")" ^^ { case s: Seq[(String, String)] => s.toMap }
 
   protected lazy val className: Parser[String] = repsep(ident, ".") ^^ { case s => s.mkString(".")}
