@@ -97,7 +97,7 @@ class SqlLexical(val keywords: Seq[String]) extends StdLexical {
 
   /** Generate all variations of upper and lower case of a given string */
   def allCaseVersions(s: String): Stream[String] = {
-    val chars = s.toCharArray
+    val chars = s.toLowerCase.toCharArray
     val chars_length = chars.length
     var stream = Stream("")
     val n = Math.pow(2, chars_length).toInt
