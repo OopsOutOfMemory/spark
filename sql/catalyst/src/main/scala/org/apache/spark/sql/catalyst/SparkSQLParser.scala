@@ -96,7 +96,7 @@ class SqlLexical(val keywords: Seq[String]) extends StdLexical {
     ).*
 
   /** Generate all variations of upper and lower case of a given string */
-  lazy val allCaseVersions: Stream[String] = (s: String) =>  {
+  def allCaseVersions(s: String): List[String] = {
     val chars = s.toLowerCase().toCharArray
     val chars_length = chars.length
     var stream = List[String]()
@@ -110,9 +110,10 @@ class SqlLexical(val keywords: Seq[String]) extends StdLexical {
           cases(j) = chars(j)
         }
       }
-      stream = stream ++ Stream(cases.mkString)
+      stream ++ (cases.mkString)
     }
-    Stream.continually(stream.toStream).flatten
+//    Stream.continually(stream.toStream).flatten
+    stream
   }
 
   def isBitSet( n: Int,  offset: Int) : Boolean = {
