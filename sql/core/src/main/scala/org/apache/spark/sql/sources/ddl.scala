@@ -248,7 +248,11 @@ private [sql] case class CreateTempTableUsing(
 
 private[sql] case class DropTable(tableName: String, isExists: Boolean) extends RunnableCommand {
   def run(sqlContext: SQLContext) = {
-    sqlContext.dropTempTable(tableName)
+    if (isExists) {
+      if (sqlContext.catalog.tableExists(Seq(tableName))) sqlContext.dropTempTable(tableName)
+    } else {
+      sqlContext.dropTempTable(tableName)
+    }
     Seq.empty
   }
 }
