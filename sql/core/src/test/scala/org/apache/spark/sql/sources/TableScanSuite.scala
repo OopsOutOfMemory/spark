@@ -315,6 +315,24 @@ class TableScanSuite extends DataSourceTest {
       (1 to 10).map(Row(_)).toSeq)
   }
 
+  test("SPARK-5264 drop table test") {
+    val tableName = "drop_me"
+    val ddl = s"""
+      |CREATE TEMPORARY TABLE $tableName
+      |USING org.apache.spark.sql.sources
+      |OPTIONS (
+      |  from '1',
+      |  to '10'
+      |)
+      """.stripMargin
+
+    sql(ddl)
+    val dropSchema = caseInsensisitiveContext.table(tableName)
+    sql(s"drop table $tableName")
+    val notHaveThatTable = intercept[Exception] { caseInsensisitiveContext.table(tableName) }
+    assert(notHaveThatTable.getMessage.contains("Table Not Found"))
+  }
+
   test("exceptions") {
     // Make sure we do throw correct exception when users use a relation provider that
     // only implements the RelationProvier or the SchemaRelationProvider.

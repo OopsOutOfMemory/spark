@@ -57,10 +57,13 @@ private[sql] class DDLParser extends StandardTokenParsers with PackratParsers wi
     lexical.allCaseVersions(k.str).map(x => x : Parser[String]).reduce(_ | _)
 
   protected val CREATE = Keyword("CREATE")
+  protected val DROP = Keyword("DROP")
   protected val TEMPORARY = Keyword("TEMPORARY")
   protected val TABLE = Keyword("TABLE")
   protected val USING = Keyword("USING")
   protected val OPTIONS = Keyword("OPTIONS")
+  protected val IF = Keyword("IF")
+  protected val EXISTS = Keyword("EXISTS")
 
   // Data types.
   protected val STRING = Keyword("STRING")
@@ -89,8 +92,12 @@ private[sql] class DDLParser extends StandardTokenParsers with PackratParsers wi
 
   override val lexical = new SqlLexical(reservedWords)
 
-  protected lazy val ddl: Parser[LogicalPlan] = createTable
+  protected lazy val ddl: Parser[LogicalPlan] = createTable | dropTable
 
+  protected lazy val dropTable: Parser[LogicalPlan] =
+    DROP ~ TABLE ~> (IF ~ EXISTS).? ~ ident ^^ {
+      case exists ~ tableName => DropTable(tableName, exists.nonEmpty)
+    }
   /**
    * `CREATE [TEMPORARY] TABLE avroTable
    * USING org.apache.spark.sql.avro
@@ -238,6 +245,14 @@ private [sql] case class CreateTempTableUsing(
     Seq.empty
   }
 }
+
+private[sql] case class DropTable(tableName: String, isExists: Boolean) extends RunnableCommand {
+  def run(sqlContext: SQLContext) = {
+    sqlContext.dropTempTable(tableName)
+    Seq.empty
+  }
+}
+
 
 /**
  * Builds a map in which keys are case insensitive
