@@ -33,8 +33,9 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.ExplainCommand
-import org.apache.spark.sql.hive.execution.{HiveNativeCommand, DropTable, AnalyzeTable}
+import org.apache.spark.sql.hive.execution.{HiveNativeCommand, AnalyzeTable}
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.sources.DropTable
 
 /* Implicit conversions */
 import scala.collection.JavaConversions._
@@ -454,7 +455,8 @@ https://cwiki.apache.org/confluence/display/Hive/Enhanced+Aggregation%2C+Cube%2C
            Token("TOK_TABNAME", tableNameParts) ::
            ifExists) =>
       val tableName = tableNameParts.map { case Token(p, Nil) => p }.mkString(".")
-      DropTable(tableName, ifExists.nonEmpty)
+      // not a temp table, temporary false
+      DropTable(tableName, ifExists.nonEmpty, false)
     // Support "ANALYZE TABLE tableNmae COMPUTE STATISTICS noscan"
     case Token("TOK_ANALYZE",
             Token("TOK_TAB", Token("TOK_TABNAME", tableNameParts) :: partitionSpec) ::

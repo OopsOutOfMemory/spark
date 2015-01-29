@@ -315,7 +315,7 @@ class TableScanSuite extends DataSourceTest {
       (1 to 10).map(Row(_)).toSeq)
   }
 
-  test("SPARK-5264 drop table test") {
+  test("SPARK-5264 drop temporary table [if exists] test") {
     val tableName = "drop_me"
     val ddl = s"""
       |CREATE TEMPORARY TABLE $tableName
@@ -328,9 +328,12 @@ class TableScanSuite extends DataSourceTest {
 
     sql(ddl)
     val dropSchema = caseInsensisitiveContext.table(tableName)
-    sql(s"drop table $tableName")
-    val notHaveThatTable = intercept[Exception] { caseInsensisitiveContext.table(tableName) }
-    assert(notHaveThatTable.getMessage.contains("Table Not Found"))
+    sql(s"drop temporary table $tableName")
+    val nonexistsingTable = intercept[Exception] { caseInsensisitiveContext.table(tableName) }
+    assert(nonexistsingTable.getMessage.contains("Table Not Found"))
+
+    // test if exists keyword in drop table
+    sql(s"drop temporary table IF EXISTS $tableName")
   }
 
   test("exceptions") {

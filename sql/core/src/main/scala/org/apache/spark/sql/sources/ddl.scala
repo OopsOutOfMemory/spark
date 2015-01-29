@@ -95,9 +95,11 @@ private[sql] class DDLParser extends StandardTokenParsers with PackratParsers wi
   protected lazy val ddl: Parser[LogicalPlan] = createTable | dropTable
 
   protected lazy val dropTable: Parser[LogicalPlan] =
-    DROP ~ TABLE ~> (IF ~ EXISTS).? ~ ident ^^ {
-      case exists ~ tableName => DropTable(tableName, exists.nonEmpty)
+  (
+    (DROP ~> TEMPORARY.? <~ TABLE) ~ (IF ~ EXISTS).? ~ ident ^^ {
+      case temp ~ exists ~ tableName => DropTable(tableName, exists.nonEmpty, temp.nonEmpty)
     }
+  )
   /**
    * `CREATE [TEMPORARY] TABLE avroTable
    * USING org.apache.spark.sql.avro
@@ -246,12 +248,26 @@ private [sql] case class CreateTempTableUsing(
   }
 }
 
-private[sql] case class DropTable(tableName: String, isExists: Boolean) extends RunnableCommand {
+private[sql] case class DropTable(
+    tableName: String,
+    isExists: Boolean,
+    temporary: Boolean) extends Command
+
+private[sql] case class DropTempTable(
+    tableName: String,
+    isExists: Boolean,
+    temporary: Boolean) extends RunnableCommand {
+
   def run(sqlContext: SQLContext) = {
+    val tableExists = sqlContext.catalog.tableExists(Seq(tableName))
     if (isExists) {
-      if (sqlContext.catalog.tableExists(Seq(tableName))) sqlContext.dropTempTable(tableName)
-    } else {
-      sqlContext.dropTempTable(tableName)
+      if (tableExists) sqlContext.dropTempTable(tableName)
+      else logWarning(s"Unknown table '${tableName}'")
+    }
+    // no `IF EXISTS` keyword, will thorw an exception
+    else {
+      if (tableExists) sqlContext.dropTempTable(tableName)
+      else sys.error(s"Unknown table '${tableName}'")
     }
     Seq.empty
   }
