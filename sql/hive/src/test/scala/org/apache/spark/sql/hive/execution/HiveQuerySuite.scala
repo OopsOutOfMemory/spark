@@ -531,7 +531,7 @@ class HiveQuerySuite extends HiveComparisonTest with BeforeAndAfter {
   createQueryTest("support create table like",
     """
       |create database if not exists testdb;
-      |create table mac like src;
+      |create table if not exists mac like src;
       |desc mac;
       |select count(1) from mac;
       |create table testdb.book like default.src;
