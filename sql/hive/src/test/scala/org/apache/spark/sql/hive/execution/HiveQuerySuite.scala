@@ -553,6 +553,9 @@ class HiveQuerySuite extends HiveComparisonTest with BeforeAndAfter {
     assertResult(Array(Row("int"), Row("string"))) {
       sql("desc tempTable")("data_type").collect
     }
+
+    // test like hive table
+    sql("create table mysrc like src").collect
   }
 
   test("predicates contains an empty AttributeSet() references") {
