@@ -124,6 +124,18 @@ case class CreateTableAsSelect[T](
   override lazy val resolved = databaseName != None && childrenResolved
 }
 
+case class CreateTableLike[T](
+    databaseName: Option[String],
+    tableName: String,
+    likeDatabaseName: Option[String],
+    likeTableName: String,
+    allowExisting: Boolean,
+    desc: Option[T] = None) extends LeafNode {
+  override def output = Seq.empty[Attribute]
+  override lazy val resolved =
+    databaseName.nonEmpty && likeDatabaseName.nonEmpty && childrenResolved
+}
+
 case class WriteToFile(
     path: String,
     child: LogicalPlan) extends UnaryNode {

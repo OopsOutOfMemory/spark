@@ -21,6 +21,8 @@ import java.io.IOException
 import java.util.{List => JList}
 
 import com.google.common.cache.{LoadingCache, CacheLoader, CacheBuilder}
+import org.apache.hadoop.hive.ql.Context
+import org.apache.hadoop.hive.ql.parse.{QB, ASTNode, SemanticAnalyzer}
 
 import org.apache.hadoop.util.ReflectionUtils
 import org.apache.hadoop.hive.metastore.{Warehouse, TableType}
@@ -380,17 +382,51 @@ private[hive] class HiveMetastoreCatalog(hive: HiveContext) extends Catalog with
     }
   }
 
+  protected def getCreateTableDesc(databaseName: String, tblName: String, extra: ASTNode) = {
+    val desc: Option[CreateTableDesc] = if (tableExists(Seq(databaseName, tblName))) {
+      None
+    } else {
+      val sa = new SemanticAnalyzer(hive.hiveconf) {
+        override def analyzeInternal(ast: ASTNode) {
+          // A hack to intercept the SemanticAnalyzer.analyzeInternal,
+          // to ignore the SELECT clause of the CTAS
+          val method = classOf[SemanticAnalyzer].getDeclaredMethod(
+            "analyzeCreateTable", classOf[ASTNode], classOf[QB])
+          method.setAccessible(true)
+          method.invoke(this, ast, this.getQB)
+        }
+      }
+      sa.analyze(extra, new Context(hive.hiveconf))
+      Some(sa.getQB().getTableDesc)
+    }
+    desc
+  }
+
   /**
    * Creates any tables required for query execution.
    * For example, because of a CREATE TABLE X AS statement.
    */
   object CreateTables extends Rule[LogicalPlan] {
-    import org.apache.hadoop.hive.ql.Context
-    import org.apache.hadoop.hive.ql.parse.{QB, ASTNode, SemanticAnalyzer}
+    import org.apache.hadoop.hive.ql.parse.ASTNode
 
     def apply(plan: LogicalPlan): LogicalPlan = plan transform {
       // Wait until children are resolved.
       case p: LogicalPlan if !p.childrenResolved => p
+
+      case CreateTableLike(db, tbl, likeDb, likeTbl, allowExisting, Some(extra: ASTNode)) =>
+        val (dbName, tblName) = processDatabaseAndTableName(db, tbl)
+        val databaseName = dbName.getOrElse(hive.sessionState.getCurrentDatabase)
+
+        // Get the CreateTableDesc from Hive SemanticAnalyzer
+        val desc: Option[CreateTableDesc] = getCreateTableDesc(databaseName, tblName, extra)
+
+        execution.CreateTableLike(
+          db.getOrElse(databaseName),
+          tbl,
+          likeDb.getOrElse(databaseName),
+          likeTbl,
+          allowExisting,
+          desc)
 
       // TODO extra is in type of ASTNode which means the logical plan is not resolved
       // Need to think about how to implement the CreateTableAsSelect.resolved
@@ -399,23 +435,7 @@ private[hive] class HiveMetastoreCatalog(hive: HiveContext) extends Catalog with
         val databaseName = dbName.getOrElse(hive.sessionState.getCurrentDatabase)
 
         // Get the CreateTableDesc from Hive SemanticAnalyzer
-        val desc: Option[CreateTableDesc] = if (tableExists(Seq(databaseName, tblName))) {
-          None
-        } else {
-          val sa = new SemanticAnalyzer(hive.hiveconf) {
-            override def analyzeInternal(ast: ASTNode) {
-              // A hack to intercept the SemanticAnalyzer.analyzeInternal,
-              // to ignore the SELECT clause of the CTAS
-              val method = classOf[SemanticAnalyzer].getDeclaredMethod(
-                "analyzeCreateTable", classOf[ASTNode], classOf[QB])
-              method.setAccessible(true)
-              method.invoke(this, ast, this.getQB)
-            }
-          }
-
-          sa.analyze(extra, new Context(hive.hiveconf))
-          Some(sa.getQB().getTableDesc)
-        }
+        val desc: Option[CreateTableDesc] = getCreateTableDesc(databaseName, tblName, extra)
 
         execution.CreateTableAsSelect(
           databaseName,

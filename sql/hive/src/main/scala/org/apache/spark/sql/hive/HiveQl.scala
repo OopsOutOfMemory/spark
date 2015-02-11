@@ -551,6 +551,26 @@ https://cwiki.apache.org/confluence/display/Hive/Enhanced+Aggregation%2C+Cube%2C
 
       CreateTableAsSelect(db, tableName, nodeToPlan(query), allowExisting != None, Some(node))
 
+    // Support "Create TABLE [IF NOT EXISTS] sourceTableIdent LIKE targetTableIdent"
+    case Token("TOK_CREATETABLE", children)
+        if children.collect { case t @ Token("TOK_TABCOLLIST", _) => t }.isEmpty =>
+      val (
+          Some(tableNameParts) ::
+          allowExisting ::
+          Some(likeTable) ::
+          Nil) =
+        getClauses(Seq(
+          "TOK_TABNAME",
+          "TOK_IFNOTEXISTS",
+          "TOK_LIKETABLE"
+        ), children)
+
+      val (sourceDb, sourceTable) = extractDbNameTableName(tableNameParts)
+      val (targetDb, targetTable) = extractDbNameTableName(likeTable.getChildren.head)
+      val isExisting = allowExisting.nonEmpty
+
+      CreateTableLike(sourceDb, sourceTable, targetDb, targetTable, isExisting, Some(node))
+
     // If its not a "CREATE TABLE AS" like above then just pass it back to hive as a native command.
     case Token("TOK_CREATETABLE", _) => NativePlaceholder
 

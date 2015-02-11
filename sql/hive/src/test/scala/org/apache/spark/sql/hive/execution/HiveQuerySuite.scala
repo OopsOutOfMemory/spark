@@ -528,6 +528,33 @@ class HiveQuerySuite extends HiveComparisonTest with BeforeAndAfter {
   createQueryTest("select null from table",
     "SELECT null FROM src LIMIT 1")
 
+  createQueryTest("support create table like",
+    """
+      |create database if not exists testdb;
+      |create table mac like src;
+      |desc mac;
+      |select count(1) from mac;
+      |create table testdb.book like default.src;
+      |desc testdb.book;
+      |select count(1) from testdb.book;
+    """.stripMargin
+  )
+
+  test("SPARK-5720: create table like in HiveContext need support `like registered temporary table`") {
+    val srcTable = sql("select * from src")
+    srcTable.registerTempTable("tempSrc")
+
+    sql("create table tempTable like tempSrc").collect
+
+    assertResult(Array(Row("key"),Row("value"))) {
+      sql("desc tempTable")("col_name").collect
+    }
+
+    assertResult(Array(Row("int"), Row("string"))) {
+      sql("desc tempTable")("data_type").collect
+    }
+  }
+
   test("predicates contains an empty AttributeSet() references") {
     sql(
       """
