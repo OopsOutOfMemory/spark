@@ -55,7 +55,7 @@ case class CreateTableLike(
 
     // find the like table in Hive Catalog first
     if (hiveContext.catalog.tableExists(Seq(likeDatabase, likeTableName))) {
-      sourceTable = hiveContext.table(likeTableName).queryExecution.analyzed
+      sourceTable = hiveContext.catalog.lookupRelation(Seq(likeDatabase, likeTableName))
     } else {
     // not a hive table, find in temporary tables
       isTemporary = true
