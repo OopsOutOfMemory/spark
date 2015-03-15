@@ -334,7 +334,7 @@ private[sql] abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         if (!isTemporary) {
           sys.error(s"Table dropped with SQLContext must be TEMPORARY.")
         }
-        ExecutedCommand(DropTempTable(Seq(tableName), isExists, isTemporary)) :: Nil
+        ExecutedCommand(DropTemporaryTable(Seq(tableName), isExists)) :: Nil
       case _ => Nil
     }
   }

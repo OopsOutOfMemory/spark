@@ -21,7 +21,7 @@ import scala.language.existentials
 import scala.language.implicitConversions
 
 import org.apache.spark.Logging
-import org.apache.spark.sql.{SaveMode, DataFrame, SQLContext}
+import org.apache.spark.sql.{AnalysisException, SaveMode, DataFrame, SQLContext}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.AbstractSparkSQLParser
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
@@ -411,10 +411,9 @@ private[sql] case class DropTable(
     isExists: Boolean,
     temporary: Boolean) extends Command
 
-private[sql] case class DropTempTable(
+private[sql] case class DropTemporaryTable(
     tableIdent: Seq[String],
-    isExists: Boolean,
-    temporary: Boolean) extends RunnableCommand {
+    isExists: Boolean) extends RunnableCommand {
 
   def run(sqlContext: SQLContext) = {
     val tableExists = sqlContext.catalog.tableExists(tableIdent)
@@ -426,7 +425,7 @@ private[sql] case class DropTempTable(
     // no `IF EXISTS` keyword, will thorw an exception
     else {
       if (tableExists) sqlContext.dropTempTable(tableName)
-      else sys.error(s"Unknown table '$tableName'")
+      else throw new AnalysisException(s"Unknown table '$tableName'")
     }
     Seq.empty
   }
