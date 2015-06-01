@@ -609,9 +609,13 @@ trait HiveTypeCoercion {
       case cw: CaseWhenLike if !cw.resolved && cw.childrenResolved && !cw.valueTypesEqual =>
         logDebug(s"Input values for null casting ${cw.valueTypes.mkString(",")}")
         val commonType = cw.valueTypes.reduce { (v1, v2) =>
-          findTightestCommonType(v1, v2).getOrElse(sys.error(
-            s"Types in CASE WHEN must be the same or coercible to a common type: $v1 != $v2"))
+          findTightestCommonType(v1, v2).getOrElse {
+            case (t1, t2) if Seq(t1, t2).forall(numericPrecedence.contains) =>
+              if (t1 == StringType || t2 == StringType) Some(StringType)
+              else sys.error(s"Types in CASE WHEN must be the same or coercible to a common type: $v1 != $v2")
+          }
         }
+
         val transformedBranches = cw.branches.sliding(2, 2).map {
           case Seq(when, value) if value.dataType != commonType =>
             Seq(when, Cast(value, commonType))
